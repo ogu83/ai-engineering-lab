@@ -10,12 +10,21 @@ py -3.13 -m venv .venv          # Python 3.11+ required; 3.13 is available on th
 .venv\Scripts\activate           # Windows
 pip install -r requirements.txt
 
+# ep3 only: install browser binary (one-time, after pip install)
+python -m playwright install chromium
+
 # Run the ep1 pipeline (CLI)
 python -m ep1_langgraph.run "Your question here"
 python -m ep1_langgraph.run "Your question here" --verbose
 
+# Run the ep3 agent (CLI)
+python -m ep3_playwright_agent.run URL "goal"
+python -m ep3_playwright_agent.run URL "goal" --verbose
+
 # Run all offline tests (no API key needed)
 pytest ep1_langgraph/eval/ -v
+pytest ep2_structured_api/tests/ -v
+pytest ep3_playwright_agent/tests/ -v
 
 # Run a single test class
 pytest ep1_langgraph/eval/test_pipeline.py::TestRetryLoop -v
@@ -25,6 +34,7 @@ pytest ep1_langgraph/eval/test_pipeline.py::TestRetryLoop::test_pipeline_caps_re
 
 # Run integration tests (requires ANTHROPIC_API_KEY in .env)
 pytest ep1_langgraph/eval/ -v -m integration
+pytest ep3_playwright_agent/tests/ -v -m integration
 ```
 
 ## Architecture — ep1_langgraph
@@ -107,3 +117,64 @@ New episodes follow the same pattern:
 2. Add an `eval/conftest.py` with the `integration` marker (copy from `ep1_langgraph/eval/conftest.py`)
 3. Update the root `README.md` series table
 4. The module must be importable as a package from the repo root (no `sys.path` hacks)
+
+## Architecture — ep3_playwright_agent
+
+The browser agent runs an observe → decide → act loop until the goal is complete or the iteration cap is hit:
+
+```
+UserGoal → [observe: get_page_state()] → [decide: Claude tool_use] → [act: Playwright]
+                ↑                                                              │
+                └──────────────── loop until action == "done" ────────────────┘
+```
+
+**Module ownership:**
+
+| Module | Function | Responsibility |
+|---|---|---|
+| `agent/actions.py` | `Action` | Pydantic model; action-dependent validation (`type` requires value, `click` requires target) |
+| `agent/browser.py` | `get_page_state()` | Extracts visible text (truncated to 2000 chars) + element descriptors (role:label format) + history |
+| `agent/llm.py` | `decide()` | Claude call with forced tool_use; raises `RuntimeError` if no tool block returned |
+| `agent/loop.py` | `act()` | Semantic locator fallbacks: `get_by_role().or_(get_by_text())` for click, `get_by_label().or_(get_by_placeholder())` for type |
+| `agent/loop.py` | `run_loop(page)` | Pure loop — takes an open page; designed for injection in tests |
+| `agent/loop.py` | `run_agent(url)` | Browser lifecycle; lazy-imports `async_playwright` so offline tests never need browser binaries |
+
+**Playwright is a lazy import:**
+```python
+# loop.py — run_agent only
+async def run_agent(url, goal, max_iterations=10):
+    from playwright.async_api import async_playwright  # only needed at runtime
+    async with async_playwright() as pw:
+        ...
+```
+This means `from ep3_playwright_agent.agent.loop import run_loop` works in offline tests without Playwright browser binaries installed.
+
+**`TYPE_CHECKING` guards prevent Playwright import at module load:**
+```python
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from playwright.async_api import Page
+```
+
+**Mock patches go at the loop module level:**
+```python
+# Correct — patches names as bound in loop.py
+patch("ep3_playwright_agent.agent.loop.get_page_state", new=AsyncMock(...))
+patch("ep3_playwright_agent.agent.loop.decide", new=AsyncMock(...))
+patch("ep3_playwright_agent.agent.loop.act", new=AsyncMock())
+
+# Also patch act — don't rely on AsyncMock() page having real locator methods
+```
+
+**Test categories (see `tests/test_agent.py`):**
+1. `TestActionModel` — Pydantic validation, action-dependent rules
+2. `TestGetPageState` — observe step with mocked Playwright page
+3. `TestDecide` — Claude call with mocked anthropic client
+4. `TestAgentLoop` — loop logic with all I/O mocked
+5. `TestTraceStructure` — structural invariants: valid types, non-empty reasons, last action is done
+6. `TestCapBehavior` — stuck agent hits cap; successful task does not
+7. `TestAgentIntegration` — `@pytest.mark.integration`; real Claude + real browser; requires `playwright install chromium`
+
+**`pytest.ini` at repo root** sets `asyncio_mode = auto` — all async test functions run under asyncio automatically (no `@pytest.mark.asyncio` decorator needed).
+
+**Integration test fixture** (`conftest.py`) starts a local `http.server.HTTPServer` in a daemon thread serving `tests/fixtures/form.html` — no external network dependency.

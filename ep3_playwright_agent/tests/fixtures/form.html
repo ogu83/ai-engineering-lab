@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Contact Form</title>
+  <style>
+    body { font-family: sans-serif; max-width: 480px; margin: 60px auto; padding: 0 20px; }
+    label { display: block; margin-top: 16px; font-weight: bold; }
+    input { display: block; width: 100%; padding: 8px; margin-top: 4px; box-sizing: border-box; }
+    button { margin-top: 20px; padding: 10px 24px; cursor: pointer; }
+    #confirmation { display: none; }
+  </style>
+</head>
+<body>
+  <h1>Contact Us</h1>
+
+  <form id="contact-form">
+    <label for="name">Name</label>
+    <input id="name" type="text" placeholder="Your name">
+
+    <label for="email">Email</label>
+    <input id="email" type="email" placeholder="Your email address">
+
+    <button type="submit">Submit</button>
+  </form>
+
+  <div id="confirmation">
+    <h2>Thank you!</h2>
+    <p>Your message has been submitted successfully.</p>
+  </div>
+
+  <script>
+    document.getElementById('contact-form').addEventListener('submit', function (e) {
+      e.preventDefault();
+      document.getElementById('contact-form').style.display = 'none';
+      document.getElementById('confirmation').style.display = 'block';
+    });
+  </script>
+</body>
+</html>

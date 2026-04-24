@@ -129,6 +129,69 @@ pytest ep2_structured_api/tests/ -v -m integration
 
 ---
 
+## Episode 3 — Playwright + Claude: Browser Automation Agent
+
+An agent that navigates a real web UI and completes multi-step goals using Claude for decision-making and Playwright for execution — with no hardcoded selectors.
+
+### Observe → Decide → Act loop
+
+```
+UserGoal → [observe page state] → [Claude decides next action] → [Playwright executes]
+                ↑                                                          │
+                └────────────────── loop until done ──────────────────────┘
+```
+
+| Module | Responsibility |
+|---|---|
+| `browser.py` | `get_page_state()` — extracts visible text + element descriptors (~1–3KB, not full HTML) |
+| `llm.py` | `decide()` — Claude tool_use forced, returns structured `Action` |
+| `loop.py` | `act()` with semantic locator fallbacks; `run_loop()` (injectable); `run_agent()` (browser lifecycle) |
+| `actions.py` | `Action` Pydantic model with action-dependent validation |
+
+### Key concepts demonstrated
+- **Semantic locators** — `get_by_role`, `get_by_label`, `get_by_placeholder` with `or_()` fallback chains; survive UI refactors
+- **Constrained vocabulary** — `Literal["click", "type", "scroll", "scroll_up", "done"]` means Claude can only return actions Playwright can execute
+- **Cheap observation** — visible text + element labels, not full DOM; ~50× cheaper per loop iteration
+- **Testable loop** — `run_loop(page)` is separated from browser lifecycle so tests inject a mock page; Playwright is a lazy import in `run_agent`
+- **Three test signals** — outcome (did it finish?), trace structure (valid types + non-empty reasons), cap-never-hit (earliest stuck detector)
+
+### Setup
+
+```bash
+pip install -r requirements.txt
+python -m playwright install chromium   # one-time: download browser binary
+```
+
+### Run
+
+```bash
+python -m ep3_playwright_agent.run https://example.com "Click the More information link"
+python -m ep3_playwright_agent.run https://example.com "Click the More information link" --verbose
+```
+
+Verbose output shows the full action trace:
+
+```
+[1] click        → More information
+     reason: The goal is to click the More information link
+[2] done         →
+     reason: Clicked the link successfully
+
+Result: Clicked the link successfully
+```
+
+### Test
+
+```bash
+# Offline — no API key, no browser binary required
+pytest ep3_playwright_agent/tests/ -v
+
+# Integration — real Claude + real Playwright (requires ANTHROPIC_API_KEY in .env)
+pytest ep3_playwright_agent/tests/ -v -m integration
+```
+
+---
+
 ## Series Overview
 
 | Episode | Module | Topic |
