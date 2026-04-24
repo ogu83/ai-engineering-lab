@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Contact — Acme Corp</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: sans-serif; color: #333; }
+    nav { background: #1a1a2e; padding: 0 40px; display: flex; align-items: center; gap: 32px; height: 56px; }
+    nav .brand { color: #fff; font-weight: 700; font-size: 1.1rem; }
+    nav a { color: #ccc; text-decoration: none; font-size: 0.95rem; }
+    nav a:hover { color: #fff; }
+    .content { max-width: 480px; margin: 60px auto; padding: 0 40px; }
+    h1 { margin-bottom: 24px; }
+    label { display: block; margin-top: 16px; font-weight: 600; }
+    input { display: block; width: 100%; padding: 8px 12px; margin-top: 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 1rem; }
+    button { margin-top: 24px; padding: 10px 28px; background: #1a1a2e; color: #fff; border: none; border-radius: 4px; font-size: 1rem; cursor: pointer; }
+    button:hover { background: #2d2d5e; }
+    #confirmation { display: none; margin-top: 32px; padding: 20px; background: #e6f9ec; border-radius: 6px; }
+    #confirmation h2 { color: #2d7a3a; margin-bottom: 8px; }
+  </style>
+</head>
+<body>
+  <nav>
+    <span class="brand">Acme Corp</span>
+    <a href="index.html">Home</a>
+    <a href="contact.html">Contact</a>
+  </nav>
+  <div class="content">
+    <h1>Contact Us</h1>
+    <form id="contact-form">
+      <label for="name">Name</label>
+      <input id="name" type="text" placeholder="Your name">
+
+      <label for="email">Email</label>
+      <input id="email" type="email" placeholder="Your email address">
+
+      <button type="submit">Submit</button>
+    </form>
+
+    <div id="confirmation">
+      <h2>Thank you!</h2>
+      <p>Your message has been submitted successfully.</p>
+    </div>
+  </div>
+
+  <script>
+    document.getElementById('contact-form').addEventListener('submit', function (e) {
+      e.preventDefault();
+      document.getElementById('contact-form').style.display = 'none';
+      document.getElementById('confirmation').style.display = 'block';
+    });
+  </script>
+</body>
+</html>

@@ -6,6 +6,7 @@ Separation of concerns:
 """
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 from ep3_playwright_agent.agent.actions import Action
@@ -28,9 +29,13 @@ async def act(page: Page, action: Action) -> None:
     """
     match action.action:
         case "click":
-            locator = page.get_by_role("button", name=action.target).or_(
-                page.get_by_text(action.target, exact=False)
-            ).first
+            locator = (
+                page.get_by_role("link", name=action.target).or_(
+                    page.get_by_role("button", name=action.target)
+                ).or_(
+                    page.get_by_text(action.target, exact=False)
+                ).first
+            )
             await locator.click()
             try:
                 await page.wait_for_load_state("networkidle", timeout=5000)
@@ -54,11 +59,15 @@ async def run_loop(
     page: Page,
     goal: str,
     max_iterations: int = MAX_ITERATIONS_DEFAULT,
+    on_action: Callable[[int, Action], None] | None = None,
 ) -> tuple[str, list[Action]]:
     """Run the observe → decide → act loop on an already-open page.
 
     Returns (result, history) where result is either the agent's done reason
     or "Max iterations reached" if the cap was hit.
+
+    on_action: optional callback called with (step_number, action) after each
+    decision — useful for live progress output without blocking the loop.
     """
     history: list[Action] = []
 
@@ -66,6 +75,9 @@ async def run_loop(
         state = await get_page_state(page, history)
         action = await decide(goal, state)
         history.append(action)
+
+        if on_action is not None:
+            on_action(len(history), action)
 
         if action.action == "done":
             return action.reason, history
@@ -79,6 +91,7 @@ async def run_agent(
     url: str,
     goal: str,
     max_iterations: int = MAX_ITERATIONS_DEFAULT,
+    on_action: Callable[[int, Action], None] | None = None,
 ) -> tuple[str, list[Action]]:
     """Launch a browser, navigate to url, run the agent loop, close the browser.
 
@@ -92,6 +105,6 @@ async def run_agent(
         page = await browser.new_page()
         await page.goto(url)
         try:
-            return await run_loop(page, goal, max_iterations)
+            return await run_loop(page, goal, max_iterations, on_action=on_action)
         finally:
             await browser.close()
