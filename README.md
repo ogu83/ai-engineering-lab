@@ -192,7 +192,92 @@ pytest ep3_playwright_agent/tests/ -v -m integration
 
 ---
 
-## Series Overview
+## Episode 4 — Vanna + DuckDB + Claude: Natural Language SQL
+
+A chat API that converts natural language questions about a movie performance catalog into SQL, executes them, charts the results, and returns a plain-English summary — all in one POST request.
+
+### Pipeline
+
+```
+ChatRequest(question)
+  → Vanna.generate_sql()          # NL-to-SQL via ChromaDB vector + Claude
+  → run_query()                   # DuckDB read-only execution
+  → build_chart()                 # Plotly JSON (bar / scatter / "")
+  → summarize()                   # Claude tool_use → summary + follow-up
+  → ChatResponse
+```
+
+| Module | Responsibility |
+|---|---|
+| `data/schema.py` | DDL definitions + 10 ground-truth Q&A training pairs |
+| `data/create_db.py` | Generates `catalog.duckdb` — 20 titles × 3 regions × 4 quarters |
+| `pipeline/vanna_setup.py` | `CatalogVanna(ChromaDB_VectorStore, Anthropic_Chat)` singleton via `@lru_cache` |
+| `pipeline/query_engine.py` | `run_query()` — SELECT/WITH guard, FileNotFoundError, 500-row cap |
+| `pipeline/chart_builder.py` | `build_chart()` — categorical+numeric → bar; two numeric → scatter |
+| `pipeline/summarizer.py` | `summarize()` — async Claude tool_use; short-circuits on empty df |
+| `api/routes.py` | `POST /chat` — 4-step pipeline; 503/502/error-field taxonomy per step |
+| `ui/index.html` | Dark-theme single-page chat UI; renders table + Plotly chart inline |
+
+### Key concepts demonstrated
+- **Vanna multi-inheritance pattern** — `CatalogVanna(ChromaDB_VectorStore, Anthropic_Chat)` is the standard Vanna composition; explicit `__init__` calls to both parents
+- **SELECT guard** — `WITH` (CTEs) as well as `SELECT` accepted; everything else rejected before the DB is touched
+- **Singleton via `@lru_cache`** — one Vanna instance for the app lifetime; no per-request ChromaDB startup cost
+- **Sync Vanna in async route** — `await loop.run_in_executor(None, vn.generate_sql, question)` keeps the event loop unblocked
+- **Error taxonomy** — 503 (Vanna), 502 (DuckDB / summarizer), `ChatResponse(error=...)` (expected domain errors)
+
+### Bootstrap (run once)
+
+```bash
+pip install -r requirements.txt
+
+# 1 — create the database
+python -m ep4_nlsql.data.create_db
+
+# 2 — train Vanna (writes ChromaDB index)
+python -m ep4_nlsql.pipeline.vanna_setup
+```
+
+### Run
+
+```bash
+uvicorn ep4_nlsql.main:app --reload
+# Chat UI:   http://localhost:8000/ui
+# Swagger:   http://localhost:8000/docs
+# POST /api/v1/chat
+```
+
+Example request:
+
+```json
+{ "question": "Which genre has the highest average return rate?" }
+```
+
+Example response:
+
+```json
+{
+  "question": "Which genre has the highest average return rate?",
+  "sql": "SELECT t.genre, AVG(p.return_rate) AS avg_return_rate FROM performance p ...",
+  "result": [{"genre": "Horror", "avg_return_rate": 0.142}, ...],
+  "chart_json": "{\"data\":[{\"type\":\"bar\",...}]}",
+  "summary": "Horror titles have by far the highest return rate at 14.2%, ...",
+  "follow_up": "Which Horror titles specifically have the highest return rates?"
+}
+```
+
+### Test
+
+```bash
+# Offline — no API key required
+pytest ep4_nlsql/tests/ -v
+
+# Integration — real Claude (requires ANTHROPIC_API_KEY + bootstrap steps above)
+pytest ep4_nlsql/tests/ -v -m integration
+```
+
+---
+
+
 
 | Episode | Module | Topic |
 |---|---|---|

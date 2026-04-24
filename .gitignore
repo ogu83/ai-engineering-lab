@@ -9,3 +9,7 @@ dist/
 *.egg-info/
 .gstack/
 *.session
+
+# ep4 generated data (bootstrap outputs, not committed)
+ep4_nlsql/data/catalog.duckdb
+ep4_nlsql/data/chroma/
