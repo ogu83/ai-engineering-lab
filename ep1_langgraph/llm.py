@@ -9,7 +9,7 @@ from pydantic import BaseModel
 
 load_dotenv()
 
-_DEFAULT_MODEL = "claude-3-5-sonnet-20241022"
+_DEFAULT_MODEL = "claude-3-5-sonnet-latest"
 
 
 def call_with_tool(
