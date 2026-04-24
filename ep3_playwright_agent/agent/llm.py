@@ -11,7 +11,7 @@ from ep3_playwright_agent.agent.actions import Action
 load_dotenv()
 
 _client = anthropic.AsyncAnthropic()
-MODEL = os.getenv("ANTHROPIC_MODEL", "claude-3-5-sonnet-latest")
+MODEL = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-5")
 
 SYSTEM_PROMPT = """You are a browser automation agent. Complete the goal by operating a web browser one step at a time.
 

@@ -10,7 +10,7 @@ from ep2_structured_api.llm.prompts import ENRICH_TOOL_DESCRIPTION, SYSTEM_PROMP
 
 load_dotenv()
 
-_DEFAULT_MODEL = "claude-3-5-sonnet-latest"
+_DEFAULT_MODEL = "claude-sonnet-4-5"
 
 # Module-level singleton — one HTTP client shared across all requests
 _async_client = anthropic.AsyncAnthropic()
