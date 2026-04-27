@@ -9,10 +9,13 @@ import functools
 import os
 from pathlib import Path
 
+from dotenv import load_dotenv
 from vanna.legacy.anthropic.anthropic_chat import Anthropic_Chat
 from vanna.legacy.chromadb.chromadb_vector import ChromaDB_VectorStore
 
 from ep4_nlsql.data.schema import DDL, QA_PAIRS
+
+load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
 MODEL     = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-5")
 API_KEY   = os.getenv("ANTHROPIC_API_KEY", "")

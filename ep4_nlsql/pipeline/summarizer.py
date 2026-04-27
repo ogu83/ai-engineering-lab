@@ -2,9 +2,13 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 
 import anthropic
 import pandas as pd
+from dotenv import load_dotenv
+
+load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
 MODEL = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-5")
 _client = anthropic.AsyncAnthropic()
